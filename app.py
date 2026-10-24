@@ -12,13 +12,9 @@ from pptx.dml.color import RGBColor
 from pptx.enum.text import PP_ALIGN
 from pptx.enum.shapes import MSO_SHAPE
 
-# 1. CONFIGURAÇÃO DA PÁGINA COM O FAVICON OFICIAL DA SUZANO
 FAVICON_OFICIAL = "https://cdn.prod.website-files.com/69cb021343dbf125cabfa994/69cb021343dbf125cabfaa24_favicon-suzano.png"
 st.set_page_config(page_title="Suzano | Trade Marketing", page_icon=FAVICON_OFICIAL, layout="wide")
 
-# =========================================================
-# CONEXÃO COM GOOGLE DRIVE PARA ARQUIVOS PESADOS (> 25MB)
-# =========================================================
 LINK_DRIVE_ZIP = "https://drive.google.com/file/d/18GBHvpYRNLVLvDE8EdUz2QQXOMPpnbPd/view?usp=sharing"
 LINK_DRIVE_CAPA = "https://docs.google.com/presentation/d/1Q4DfabWYLGPORt1t-N4zF87hA9yh1m7d/export?format=pptx"
 
@@ -51,22 +47,26 @@ def achar_logo(marca):
     m = marca.upper().strip()
     if not os.path.exists(PASTA_FOTOS): return None
     
-    # Varredura aprimorada para encontrar a logo da Neve
-    for root, _, files in os.walk(PASTA_FOTOS):
-        for f in files:
-            f_up = f.upper()
-            if m in f_up and ("LOGO" in f_up or "MARCA" in f_up or f_up.startswith("N") or f_up.startswith("M") or f_up.startswith("S") or f_up.startswith("K") or f_up.startswith("D")):
-                # Se for Neve, aceita qualquer imagem que tenha Neve e não seja o fardo de produto
-                if m == "NEVE" and "NEVE" in f_up and not any(sub in f_up for sub in ["FOLHA", "DUPLA", "TRIPLA", "WIPES", "QUADRUPLA", "ROLO", "TOQUE"]):
+    # Mapeamento exato para cada marca para evitar duplicados ou falhas
+    termos_busca = {
+        "NEVE": ["LOGO_NEVE", "NEVE_LOGO", "MARCA_NEVE", "NEVE"],
+        "MIMMO": ["MIMMO", "LOGO_MIMMO"],
+        "SCOTT": ["SCOTT", "LOGO_SCOTT"],
+        "KLEENEX": ["KLEENEX", "LOGO_KLEENEX"],
+        "DURAMAX": ["DURAMAX", "LOGO_DURAMAX"]
+    }
+    
+    possibilidades = termos_busca.get(m, [m])
+    
+    for termo in possibilidades:
+        for root, _, files in os.walk(PASTA_FOTOS):
+            for f in files:
+                f_up = f.upper()
+                if termo in f_up:
+                    # Garantir que a Neve não puxe uma embalagem de produto por engano
+                    if m == "NEVE" and any(sub in f_up for sub in ["FOLHA", "DUPLA", "TRIPLA", "WIPES", "QUADRUPLA", "ROLO", "TOQUE"]):
+                        continue
                     return os.path.join(root, f)
-                elif m != "NEVE" and f"LOGO_{m}" in f_up:
-                    return os.path.join(root, f)
-
-    # Segunda tentativa ampla caso falhe
-    for root, _, files in os.walk(PASTA_FOTOS):
-        for f in files:
-            if m in f.upper() and not any(c.isdigit() for c in f.upper()):
-                return os.path.join(root, f)
     return None
 
 def achar_imagem(mat_code):
@@ -78,7 +78,6 @@ def achar_imagem(mat_code):
                 return os.path.join(root, f)
     return None
 
-# 2. SVG OFICIAL DA SUZANO
 SVG_SUZANO_OFICIAL = """<svg xmlns="http://www.w3.org/2000/svg" width="220" height="52" viewBox="0 0 120 28" fill="none">
 <path d="M17.1158 9.99659C17.6873 7.6407 17.9414 5.28482 17.8778 2.86526V2.80159C22.0057 2.35588 26.6417 1.8465 29.3089 0C29.69 2.35588 30.071 6.23991 25.4351 12.7982C20.6721 19.4201 13.3054 23.0495 7.20884 24.9596C8.66948 23.8135 10.0031 22.4764 11.2732 21.0756C14.1945 17.7646 16.0997 14.008 17.1158 9.99659ZM15.4646 3.11995C9.74908 3.69301 5.7482 5.53951 3.20796 8.72314C0.4137 12.1615 -0.538889 17.4463 0.286688 24.6413C0.350194 25.3417 0.4137 25.851 0.477206 26.2331H0.540712C3.589 24.7686 15.5281 17.9557 15.4646 3.11995ZM31.0871 7.44969C30.198 9.86924 28.9914 12.1615 27.4672 14.2626C22.6408 20.9483 15.5281 24.5776 10.3206 26.4878C8.66948 27.1245 7.08183 7.5702 5.7482 27.9522C9.81259 28.1433 13.5594 27.7612 16.8617 26.8061C20.6086 25.7237 23.6569 23.8772 26.0701 21.394C29.5629 17.7646 31.3411 12.8619 31.0871 7.44969Z" fill="url(#paint0_radial_suzano)"/>
 <path d="M47.2194 13.1188C46.3939 12.5457 44.7427 11.909 43.028 11.909C41.3134 11.909 40.1068 12.6731 40.1068 13.8192C40.1068 14.8379 41.0594 15.3473 42.5835 15.5383L44.1076 15.7294C46.8384 16.1114 48.4896 17.2575 48.4896 19.4224C48.4896 21.9056 46.2668 23.4974 42.774 23.4974C41.1864 23.4974 39.0272 23.1154 37.3125 21.8419L38.3286 20.1864C39.2812 20.9505 40.5513 21.5872 42.7105 21.5872C44.8697 21.5872 46.1398 20.8868 46.1398 19.6134C46.1398 18.6583 45.3143 18.0852 43.5361 17.8306L42.0119 17.6395C39.1542 17.2575 37.757 15.984 37.757 14.0102C37.757 11.527 39.7892 10.0625 42.9645 10.0625C44.9967 10.0625 46.8384 10.5719 48.1085 11.4633L47.2194 13.1188Z" fill="#FFFFFF"/>
@@ -99,7 +98,6 @@ SVG_SUZANO_OFICIAL = """<svg xmlns="http://www.w3.org/2000/svg" width="220" heig
 b64_suzano_logo = base64.b64encode(SVG_SUZANO_OFICIAL.encode('utf-8')).decode('utf-8')
 URL_LOGO_TAGLINE_RODAPE = "https://cdn.prod.website-files.com/69cb021343dbf125cabfa994/69cb021343dbf125cabfa9df_logo-tagline.svg"
 
-# 3. ESTILOS CSS OFICIAIS
 st.markdown("""
 <style>
     div.stButton > button:first-child, div.stDownloadButton > button:first-child {
@@ -123,7 +121,6 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# 4. BANNER CORPORATIVO
 st.markdown(f"""
 <div style="background: linear-gradient(95deg, #03267F 0%, #003882 60%, #004B9B 100%); padding: 26px 35px; border-radius: 12px 12px 0px 0px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 20px; box-shadow: 0 6px 16px rgba(0,0,0,0.35);">
     <div style="display: flex; align-items: center; gap: 24px;">
@@ -242,8 +239,7 @@ with col_direita:
         if l_path:
             logo_cols[i].image(l_path, use_container_width=True)
         else:
-            # Fallback visual caso a imagem exata venha com outro nome no ZIP
-            logo_cols[i].markdown(f"<div style='text-align:center; padding:10px; font-weight:bold; color:#fff;'>{m_nome}</div>", unsafe_allow_html=True)
+            logo_cols[i].markdown(f"<div style='text-align:center; padding:12px; font-weight:bold; color:#fff; background:rgba(255,255,255,0.05); border-radius:6px;'>{m_nome}</div>", unsafe_allow_html=True)
             
     st.markdown("<hr style='margin: 15px 0px; border-color: #444444;'>", unsafe_allow_html=True)
     
@@ -381,99 +377,4 @@ if gerar and arquivo_up:
                         elif "Pano" in subcat and logo_duramax:
                             slide.shapes.add_picture(logo_duramax, Inches(0.35), Inches(6.85), height=Inches(0.62))
                         elif logo_neve:
-                            slide.shapes.add_picture(logo_neve, Inches(0.35), Inches(6.86), height=Inches(0.58))
-                        
-                        for j, item in enumerate(chunk):
-                            pos = CARDS_POS[j]
-                            cx, cy = pos["x"], pos["y"]
-                            imp_num = i + j + 1
-                            
-                            card = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, cx, cy, Inches(6.15), Inches(2.95))
-                            card.fill.solid()
-                            card.fill.fore_color.rgb = RGBColor(255, 255, 255)
-                            card.line.color.rgb = RGBColor(200, 210, 225)
-                            card.line.width = Pt(1.5)
-                            
-                            cbar = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, cx, cy, Inches(6.15), Inches(0.42))
-                            cbar.fill.solid()
-                            cbar.fill.fore_color.rgb = RGBColor(0, 75, 160)
-                            cbar.line.fill.background()
-                            
-                            badge = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, cx + Inches(0.15), cy + Inches(0.04), Inches(2.2), Inches(0.34))
-                            badge.fill.solid()
-                            badge.fill.fore_color.rgb = RGBColor(10, 100, 200)
-                            badge.line.color.rgb = RGBColor(120, 180, 255)
-                            
-                            p_b = badge.text_frame.paragraphs[0]
-                            p_b.text = str(item['CATEGORIA']).split(' - ')[0].upper()
-                            p_b.font.size = Pt(11)
-                            p_b.font.bold = True
-                            p_b.font.color.rgb = RGBColor(255, 255, 255)
-                            p_b.alignment = PP_ALIGN.CENTER
-                            
-                            mat_code = str(item['MATERIAL'])
-                            img_path = achar_imagem(mat_code)
-                            
-                            if img_path:
-                                slide.shapes.add_picture(img_path, cx + Inches(0.15), cy + Inches(0.52), width=Inches(1.85))
-                            else:
-                                ph = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, cx + Inches(0.15), cy + Inches(0.55), Inches(1.85), Inches(1.8))
-                                ph.fill.solid()
-                                ph.fill.fore_color.rgb = RGBColor(240, 240, 240)
-                                ph.line.color.rgb = RGBColor(180, 180, 180)
-                                
-                                p_ph = ph.text_frame.paragraphs[0]
-                                p_ph.text = f"Inserir Foto\n(Mat: {mat_code})"
-                                p_ph.font.size = Pt(9)
-                                p_ph.font.bold = True
-                                p_ph.font.color.rgb = RGBColor(100, 100, 100)
-                                p_ph.alignment = PP_ALIGN.CENTER
-                            
-                            tb_info = slide.shapes.add_textbox(cx + Inches(2.10), cy + Inches(0.48), Inches(3.95), Inches(1.90))
-                            tf_i = tb_info.text_frame
-                            tf_i.word_wrap = True
-                            
-                            p_n = tf_i.paragraphs[0]
-                            p_n.text = str(item['PRODUTO'])
-                            p_n.font.size = Pt(12)
-                            p_n.font.bold = True
-                            p_n.font.color.rgb = RGBColor(30, 30, 30)
-                            
-                            for lbl in [f"Categoria: {str(item['CATEGORIA']).split(' - ')[0]}", f"EAN: {item['EAN']}", f"Material: {mat_code}"]:
-                                p_sub = tf_i.add_paragraph()
-                                p_sub.text = lbl
-                                p_sub.font.size = Pt(10.5)
-                                p_sub.font.color.rgb = RGBColor(80, 80, 80)
-                            
-                            status_str = str(item['PRIORIDADE']).upper().strip()
-                            tb_prio = slide.shapes.add_textbox(cx + Inches(0.15), cy + Inches(2.48), Inches(3.8), Inches(0.38))
-                            
-                            p_p = tb_prio.text_frame.paragraphs[0]
-                            p_p.text = f"Prioridade: {status_str}"
-                            p_p.font.size = Pt(11)
-                            p_p.font.bold = True
-                            
-                            if "HERO" in status_str:
-                                p_p.font.color.rgb = RGBColor(0, 130, 60)
-                            elif "PRIORITARIO" in status_str:
-                                p_p.font.color.rgb = RGBColor(0, 90, 180)
-                            else:
-                                p_p.font.color.rgb = RGBColor(90, 90, 90)
-                            
-                            tb_imp = slide.shapes.add_textbox(cx + Inches(4.10), cy + Inches(2.48), Inches(1.90), Inches(0.38))
-                            p_imp = tb_imp.text_frame.paragraphs[0]
-                            p_imp.text = f"Importância: {imp_num}"
-                            p_imp.font.size = Pt(11)
-                            p_imp.font.bold = True
-                            p_imp.font.color.rgb = RGBColor(0, 75, 160)
-                            p_imp.alignment = PP_ALIGN.RIGHT
-
-            ppt_bytes = BytesIO()
-            prs_out.save(ppt_bytes)
-            st.success("✅ Apresentação Finalizada com Sucesso! Clique abaixo para baixar.")
-            st.download_button(
-                label="📥 Baixar Guia de Vendas (.pptx)",
-                data=ppt_bytes.getvalue(),
-                file_name=f"Guia_Mix_{titulo_regional.replace(' ', '_')}.pptx",
-                mime="application/vnd.openxmlformats-officedocument.presentationml.presentation"
-            )
+                            slide.shapes.add_picture(logo_neve, Inches(0.35), Inches(6.86), height=Inches(0.
