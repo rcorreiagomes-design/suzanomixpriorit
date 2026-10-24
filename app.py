@@ -26,7 +26,7 @@ PASTA_FOTOS = "fotos_temp"
 ARQUIVO_ZIP = "Banco_de_Fotos_Suzano.zip"
 ARQUIVO_CAPA = "Base_Capa.pptx"
 
-@st.cache_resource(show_spinner="Carregando catálogo visual e templates da Suzano...")
+@st.cache_resource(show_spinner="A carregar catálogo visual e templates da Suzano...")
 def preparar_arquivos_nuvem():
     if not os.path.exists(PASTA_FOTOS):
         if not os.path.exists(ARQUIVO_ZIP):
@@ -51,25 +51,21 @@ def achar_logo(marca):
     m = marca.upper().strip()
     if not os.path.exists(PASTA_FOTOS): return None
     
-    # Varredura inteligente exata para encontrar a logo da Neve no ZIP
-    if m == "NEVE":
-        for root, _, files in os.walk(PASTA_FOTOS):
-            for f in files:
-                f_up = f.upper()
-                if "NEVE" in f_up and ("LOGO" in f_up or "MARCA" in f_up or "PNG" in f_up or "JPG" in f_up):
-                    if not any(sub in f_up for sub in ["FOLHA", "DUPLA", "TRIPLA", "WIPES", "QUADRUPLA", "ROLO"]):
-                        return os.path.join(root, f)
-
-    termo = f"LOGO_{m}"
-    for root, _, files in os.walk(PASTA_FOTOS):
-        for f in files:
-            if termo in f.upper():
-                return os.path.join(root, f)
-                
+    # Varredura aprimorada para encontrar a logo da Neve
     for root, _, files in os.walk(PASTA_FOTOS):
         for f in files:
             f_up = f.upper()
-            if m in f_up and not any(c.isdigit() for c in f_up):
+            if m in f_up and ("LOGO" in f_up or "MARCA" in f_up or f_up.startswith("N") or f_up.startswith("M") or f_up.startswith("S") or f_up.startswith("K") or f_up.startswith("D")):
+                # Se for Neve, aceita qualquer imagem que tenha Neve e não seja o fardo de produto
+                if m == "NEVE" and "NEVE" in f_up and not any(sub in f_up for sub in ["FOLHA", "DUPLA", "TRIPLA", "WIPES", "QUADRUPLA", "ROLO", "TOQUE"]):
+                    return os.path.join(root, f)
+                elif m != "NEVE" and f"LOGO_{m}" in f_up:
+                    return os.path.join(root, f)
+
+    # Segunda tentativa ampla caso falhe
+    for root, _, files in os.walk(PASTA_FOTOS):
+        for f in files:
+            if m in f.upper() and not any(c.isdigit() for c in f.upper()):
                 return os.path.join(root, f)
     return None
 
@@ -82,7 +78,7 @@ def achar_imagem(mat_code):
                 return os.path.join(root, f)
     return None
 
-# 2. SVG OFICIAL EXTRAÍDO DO CÓDIGO-FONTE DA SUZANO
+# 2. SVG OFICIAL DA SUZANO
 SVG_SUZANO_OFICIAL = """<svg xmlns="http://www.w3.org/2000/svg" width="220" height="52" viewBox="0 0 120 28" fill="none">
 <path d="M17.1158 9.99659C17.6873 7.6407 17.9414 5.28482 17.8778 2.86526V2.80159C22.0057 2.35588 26.6417 1.8465 29.3089 0C29.69 2.35588 30.071 6.23991 25.4351 12.7982C20.6721 19.4201 13.3054 23.0495 7.20884 24.9596C8.66948 23.8135 10.0031 22.4764 11.2732 21.0756C14.1945 17.7646 16.0997 14.008 17.1158 9.99659ZM15.4646 3.11995C9.74908 3.69301 5.7482 5.53951 3.20796 8.72314C0.4137 12.1615 -0.538889 17.4463 0.286688 24.6413C0.350194 25.3417 0.4137 25.851 0.477206 26.2331H0.540712C3.589 24.7686 15.5281 17.9557 15.4646 3.11995ZM31.0871 7.44969C30.198 9.86924 28.9914 12.1615 27.4672 14.2626C22.6408 20.9483 15.5281 24.5776 10.3206 26.4878C8.66948 27.1245 7.08183 7.5702 5.7482 27.9522C9.81259 28.1433 13.5594 27.7612 16.8617 26.8061C20.6086 25.7237 23.6569 23.8772 26.0701 21.394C29.5629 17.7646 31.3411 12.8619 31.0871 7.44969Z" fill="url(#paint0_radial_suzano)"/>
 <path d="M47.2194 13.1188C46.3939 12.5457 44.7427 11.909 43.028 11.909C41.3134 11.909 40.1068 12.6731 40.1068 13.8192C40.1068 14.8379 41.0594 15.3473 42.5835 15.5383L44.1076 15.7294C46.8384 16.1114 48.4896 17.2575 48.4896 19.4224C48.4896 21.9056 46.2668 23.4974 42.774 23.4974C41.1864 23.4974 39.0272 23.1154 37.3125 21.8419L38.3286 20.1864C39.2812 20.9505 40.5513 21.5872 42.7105 21.5872C44.8697 21.5872 46.1398 20.8868 46.1398 19.6134C46.1398 18.6583 45.3143 18.0852 43.5361 17.8306L42.0119 17.6395C39.1542 17.2575 37.757 15.984 37.757 14.0102C37.757 11.527 39.7892 10.0625 42.9645 10.0625C44.9967 10.0625 46.8384 10.5719 48.1085 11.4633L47.2194 13.1188Z" fill="#FFFFFF"/>
@@ -216,10 +212,10 @@ def gerar_excel_template():
 col_esquerda, space, col_direita = st.columns([1.05, 0.08, 1.25])
 
 with col_esquerda:
-    st.markdown("### 📥 1. Etapa de Planejamento")
-    st.write("Baixe a planilha oficial com o portfólio completo da Suzano. Edite a coluna **PRIORIDADE** conforme a estratégia do seu cliente (`PRIORITARIO E HERO`, `PRIORITARIO`, `COMPLEMENTAR` ou `EXCLUIR`).")
+    st.markdown("### 📥 1. Etapa de Planeamento")
+    st.write("Transfira o ficheiro Excel oficial com o portfólio completo da Suzano. Edite a coluna **PRIORIDADE** conforme a estratégia do seu cliente (`PRIORITARIO E HERO`, `PRIORITARIO`, `COMPLEMENTAR` ou `EXCLUIR`).")
     st.download_button(
-        label="📄 Baixar Planilha Template (.xlsx)",
+        label="📄 Descarregar Excel Template (.xlsx)",
         data=gerar_excel_template(),
         file_name="Template_Mix_Suzano_2026.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
@@ -228,15 +224,15 @@ with col_esquerda:
     st.markdown("<br>", unsafe_allow_html=True)
     
     st.markdown("### ⚙️ 2. Gerar Manual de Execução")
-    st.write("Preencha os dados da conta e faça o upload da planilha configurada.")
+    st.write("Preencha os dados da conta e faça o upload da folha de cálculo configurada.")
     
     titulo_regional = st.text_input("📝 Nome do Distribuidor / Conta (Aparecerá na Capa):", placeholder="Ex: DESTRO - PR / SC")
-    arquivo_up = st.file_uploader("📂 Suba a Planilha Template preenchida (.xlsx)", type=["xlsx"])
+    arquivo_up = st.file_uploader("📂 Suba o Excel Template preenchido (.xlsx)", type=["xlsx"])
     
     gerar = st.button("🚀 Processar e Gerar PowerPoint", type="primary", use_container_width=True)
 
 with col_direita:
-    st.markdown("### 🏢 Nossas Marcas & Destaques")
+    st.markdown("### 🏢 As Nossas Marcas & Destaques")
     st.write("Catálogo Oficial - Segmento de Higiene e Cuidados Pessoais")
     
     logo_cols = st.columns(5)
@@ -245,6 +241,9 @@ with col_direita:
         l_path = achar_logo(m_nome)
         if l_path:
             logo_cols[i].image(l_path, use_container_width=True)
+        else:
+            # Fallback visual caso a imagem exata venha com outro nome no ZIP
+            logo_cols[i].markdown(f"<div style='text-align:center; padding:10px; font-weight:bold; color:#fff;'>{m_nome}</div>", unsafe_allow_html=True)
             
     st.markdown("<hr style='margin: 15px 0px; border-color: #444444;'>", unsafe_allow_html=True)
     
@@ -275,7 +274,7 @@ if gerar and arquivo_up:
     if not titulo_regional:
         st.warning("Por favor, preencha o nome do Distribuidor/Conta antes de gerar o manual.")
     else:
-        with st.spinner("Conectando ao banco de imagens Suzano e renderizando os slides..."):
+        with st.spinner("A ligar ao banco de imagens Suzano e a renderizar os diapositivos..."):
             
             df = pd.read_excel(arquivo_up)
             df.columns = [str(c).strip().upper() for c in df.columns]
