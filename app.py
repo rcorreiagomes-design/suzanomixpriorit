@@ -47,7 +47,6 @@ def achar_logo(marca):
     m = marca.upper().strip()
     if not os.path.exists(PASTA_FOTOS): return None
     
-    # Busca específica para a Neve para garantir que não mistura com a Mimmo
     if m == "NEVE":
         for root, _, files in os.walk(PASTA_FOTOS):
             for f in files:
@@ -57,7 +56,7 @@ def achar_logo(marca):
         for root, _, files in os.walk(PASTA_FOTOS):
             for f in files:
                 f_up = f.upper()
-                if "LOGO_SUZANO" in f_up: # Se o ficheiro da Neve estiver renomeado no ZIP original
+                if "LOGO_SUZANO" in f_up:
                     return os.path.join(root, f)
 
     termos_busca = {
@@ -162,4 +161,204 @@ CATALOGO_PADRAO = [
     ("20104310", "7891172171666", "LENÇO DE PAPEL KLEENEX 12 PACOTES (BOLSO)", "Lenços Secos", "Kleenex"),
     ("90005190", "7891172523908", "NEVE WIPES CARE 48 LENÇOS", "Wipes", "Neve"),
     ("90005191", "7891172523915", "NEVE WIPES CARE LEVE 4 PAGUE 3", "Wipes", "Neve"),
-    ("90004710", "7898
+    ("90004710", "7898962794241", "LENÇO UMEDECIDO MIMMO 40 LENÇOS", "Wipes", "Mimmo"),
+    ("90005082", "7891172523816", "NEVE WIPES ON THE GO", "Wipes", "Neve"),
+    ("20104313", "7891172523328", "TC SCOTT DURAMAX 1R BRANCO", "Pano Reutilizável", "Scott"),
+    ("20104312", "7891172523311", "TC SCOTT DURAMAX 1R AZUL", "Pano Reutilizável", "Scott"),
+    ("20104311", "7891172523359", "PANO SCOTT DURAMAX 48X01X12 ANTIBAC", "Pano Reutilizável", "Scott"),
+    ("20104424", "7891172523335", "PANO SCOTT DURAMAX 58X02X12 BRANCO (2R)", "Pano Reutilizável", "Scott"),
+    ("20081465", "7898962794166", "MIMMO FOLHA DUPLA 12 ROLOS 30M", "Papel Higiênico - Folha Dupla", "Mimmo"),
+    ("20104405", "7891172523434", "NEVE FOLHA DUPLA 12 ROLOS 20M", "Papel Higiênico - Folha Dupla", "Neve"),
+    ("20104408", "7891172421174", "NEVE FOLHA DUPLA 4 ROLOS 30M", "Papel Higiênico - Folha Dupla", "Neve"),
+    ("20104409", "7891172523410", "NEVE FOLHA DUPLA 12 ROLOS 30M", "Papel Higiênico - Folha Dupla", "Neve"),
+    ("20081467", "7898962794173", "MIMMO FOLHA DUPLA 16 ROLOS 30M", "Papel Higiênico - Folha Dupla", "Mimmo"),
+    ("20104410", "7891172432026", "NEVE FOLHA DUPLA 16 ROLOS 30M", "Papel Higiênico - Folha Dupla", "Neve"),
+    ("20081471", "7898962794142", "MIMMO FOLHA DUPLA 4 ROLOS 30M", "Papel Higiênico - Folha Dupla", "Mimmo"),
+    ("20104411", "7891172523403", "NEVE FD L18P16 30M", "Papel Higiênico - Folha Dupla", "Neve"),
+    ("20104412", "7891172433078", "NEVE FOLHA DUPLA 24 ROLOS 30M", "Papel Higiênico - Folha Dupla", "Neve"),
+    ("20104415", "7891172523472", "NEVE FOLHA TRIPLA 12 ROLOS 20M", "Papel Higiênico - Folha Tripla", "Neve"),
+    ("20097397", "7898962794265", "MIMMO FOLHA TRIPLA 12 ROLOS 20M", "Papel Higiênico - Folha Tripla", "Mimmo"),
+    ("20104414", "7891172422607", "NEVE FOLHA TRIPLA 4 ROLOS 20M", "Papel Higiênico - Folha Tripla", "Neve"),
+    ("20104416", "7891172432804", "NEVE FOLHA TRIPLA 16 ROLOS 20M", "Papel Higiênico - Folha Tripla", "Neve"),
+    ("20104417", "7891172523465", "NEVE FT L18P16 20M", "Papel Higiênico - Folha Tripla", "Neve"),
+    ("20104418", "7891172433085", "NEVE FOLHA TRIPLA 24 ROLOS 20M", "Papel Higiênico - Folha Tripla", "Neve"),
+    ("20109736", "7891172523847", "NEVE FOLHA TRIPLA TOQUE DE ONDAS 6R 20M", "Papel Higiênico - Folha Tripla", "Neve"),
+    ("20109735", "7891172523861", "NEVE FOLHA TRIPLA TOQUE DE ONDAS 12R 20M", "Papel Higiênico - Folha Tripla", "Neve"),
+    ("20106705", "7891172523717", "NEVE FOLHA QUADRUPLA 4R 20M", "Papel Higiênico - Folha Quádrupla", "Neve"),
+    ("20106704", "7891172523724", "NEVE FOLHA QUADRUPLA 12R 20M", "Papel Higiênico - Folha Quádrupla", "Neve"),
+]
+
+def gerar_excel_template():
+    linhas = []
+    for cluster in ["CK 1 A 4 CK", "CK 05 A 09 CK", "CK 10 A 19 CK"]:
+        for mat, ean, prod, cat, marca in CATALOGO_PADRAO:
+            if cluster in ["CK 1 A 4 CK", "CK 05 A 09 CK"] and mat in ["20104411", "20104412", "20104417", "20104418"]:
+                status_padrao = "EXCLUIR"
+            else:
+                status_padrao = "COMPLEMENTAR"
+            linhas.append({
+                "CLUSTER": cluster,
+                "MATERIAL": mat,
+                "EAN": ean,
+                "PRODUTO": prod,
+                "CATEGORIA": cat,
+                "MARCA": marca,
+                "PRIORIDADE": status_padrao
+            })
+    df_temp = pd.DataFrame(linhas)
+    output = BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        df_temp.to_excel(writer, index=False, sheet_name="Mix_Regional")
+    return output.getvalue()
+
+col_esquerda, space, col_direita = st.columns([1.05, 0.08, 1.25])
+
+with col_esquerda:
+    st.markdown("### 📥 1. Etapa de Planeamento")
+    st.write("Transfira o ficheiro Excel oficial com o portfólio completo da Suzano. Edite a coluna **PRIORIDADE** conforme a estratégia do seu cliente (`PRIORITARIO E HERO`, `PRIORITARIO`, `COMPLEMENTAR` ou `EXCLUIR`).")
+    st.download_button(
+        label="📄 Descarregar Excel Template (.xlsx)",
+        data=gerar_excel_template(),
+        file_name="Template_Mix_Suzano_2026.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
+    
+    st.markdown("<br>", unsafe_allow_html=True)
+    
+    st.markdown("### ⚙️ 2. Gerar Manual de Execução")
+    st.write("Preencha os dados da conta e faça o upload da folha de cálculo configurada.")
+    
+    titulo_regional = st.text_input("📝 Nome do Distribuidor / Conta (Aparecerá na Capa):", placeholder="Ex: DESTRO - PR / SC")
+    arquivo_up = st.file_uploader("📂 Suba o Excel Template preenchido (.xlsx)", type=["xlsx"])
+    
+    gerar = st.button("🚀 Processar e Gerar PowerPoint", type="primary", use_container_width=True)
+
+with col_direita:
+    st.markdown("### 🏢 As Nossas Marcas & Destaques")
+    st.write("Catálogo Oficial - Segmento de Higiene e Cuidados Pessoais")
+    
+    logo_cols = st.columns(5)
+    marcas_vitrine = ["NEVE", "MIMMO", "SCOTT", "KLEENEX", "DURAMAX"]
+    for i, m_nome in enumerate(marcas_vitrine):
+        l_path = achar_logo(m_nome)
+        if l_path:
+            logo_cols[i].image(l_path, use_container_width=True)
+        else:
+            logo_cols[i].markdown(f"<div style='text-align:center; padding:12px; font-weight:bold; color:#fff; background:rgba(255,255,255,0.05); border-radius:6px;'>{m_nome}</div>", unsafe_allow_html=True)
+            
+    st.markdown("<hr style='margin: 15px 0px; border-color: #444444;'>", unsafe_allow_html=True)
+    
+    prod_cols_1 = st.columns(4)
+    prods_linha_1 = ["20104405", "20106704", "20081465", "90005190"]
+    for i, p_mat in enumerate(prods_linha_1):
+        p_path = achar_imagem(p_mat)
+        if p_path:
+            prod_cols_1[i].image(p_path, use_container_width=True)
+
+    st.markdown("<div style='margin-top: 10px;'></div>", unsafe_allow_html=True)
+
+    prod_cols_2 = st.columns(4)
+    prods_linha_2 = ["20104429", "20104420", "20104312", "20104424"]
+    for i, p_mat in enumerate(prods_linha_2):
+        p_path = achar_imagem(p_mat)
+        if p_path:
+            prod_cols_2[i].image(p_path, use_container_width=True)
+
+st.markdown(f"""
+<div style="margin-top: 50px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap;">
+    <img src="{URL_LOGO_TAGLINE_RODAPE}" style="height: 32px; opacity: 0.9;" alt="Suzano - Nós plantamos o futuro">
+    <span style="color: #888888; font-size: 12px;">® Suzano S/A - Todos os direitos reservados • Ferramenta Interna de Trade Marketing</span>
+</div>
+""", unsafe_allow_html=True)
+
+if gerar and arquivo_up:
+    if not titulo_regional:
+        st.warning("Por favor, preencha o nome do Distribuidor/Conta antes de gerar o manual.")
+    else:
+        with st.spinner("A ligar ao banco de imagens Suzano e a renderizar os diapositivos..."):
+            
+            df = pd.read_excel(arquivo_up)
+            df.columns = [str(c).strip().upper() for c in df.columns]
+            
+            df = df[~df['PRIORIDADE'].astype(str).str.upper().str.contains('EXCLUIR|NAO|NÃO|FORA')]
+            
+            def extrair_num(txt):
+                nums = re.findall(r'\d+', str(txt))
+                return int(nums[0]) if nums else 99
+
+            df['Cluster_Num'] = df['CLUSTER'].apply(extrair_num)
+            ordem_cat = {
+                'Guardanapo': 1, 'Lenços Secos': 2, 'Wipes': 3, 'Pano Reutilizável': 4,
+                'Papel Higiênico - Folha Dupla': 5, 'Papel Higiênico - Folha Tripla': 6, 'Papel Higiênico - Folha Quádrupla': 7
+            }
+            ordem_prio = {'PRIORITARIO E HERO': 1, 'PRIORITARIO': 2, 'COMPLEMENTAR': 3}
+            
+            df['cat_ord'] = df['CATEGORIA'].map(ordem_cat).fillna(99)
+            df['prio_ord'] = df['PRIORIDADE'].astype(str).str.upper().str.strip().map(ordem_prio).fillna(99)
+            df = df.sort_values(by=['Cluster_Num', 'cat_ord', 'prio_ord']).reset_index(drop=True)
+
+            prs_out = Presentation()
+            prs_out.slide_width, prs_out.slide_height = Inches(13.333), Inches(7.5)
+            blank_layout = prs_out.slide_layouts[6]
+
+            slide_capa = prs_out.slides.add_slide(blank_layout)
+            if os.path.exists(ARQUIVO_CAPA):
+                prs_base = Presentation(ARQUIVO_CAPA)
+                for sh in prs_base.slides[0].shapes:
+                    if sh.shape_type == 13:
+                        slide_capa.shapes.add_picture(BytesIO(sh.image.blob), sh.left, sh.top, sh.width, sh.height)
+            else:
+                bg_c = slide_capa.shapes.add_shape(MSO_SHAPE.RECTANGLE, 0, 0, Inches(13.333), Inches(7.5))
+                bg_c.fill.solid()
+                bg_c.fill.fore_color.rgb = RGBColor(0, 56, 130)
+
+            tb_capa = slide_capa.shapes.add_textbox(Inches(2.5), Inches(2.8), Inches(8.5), Inches(2.0))
+            tb_capa.text_frame.paragraphs[0].text = f"GUIA DE VENDAS CHECKOUT\n{titulo_regional.upper()}"
+            tb_capa.text_frame.paragraphs[0].font.size = Pt(36)
+            tb_capa.text_frame.paragraphs[0].font.bold = True
+            tb_capa.text_frame.paragraphs[0].font.color.rgb = RGBColor(255, 255, 255)
+            tb_capa.text_frame.paragraphs[0].alignment = PP_ALIGN.CENTER
+
+            CARDS_POS = [
+                {"x": Inches(0.35), "y": Inches(0.80)}, {"x": Inches(6.80), "y": Inches(0.80)},
+                {"x": Inches(0.35), "y": Inches(3.95)}, {"x": Inches(6.80), "y": Inches(3.95)}
+            ]
+
+            logo_suzano = achar_logo("SUZANO")
+            logo_scott = achar_logo("SCOTT")
+            logo_kleenex = achar_logo("KLEENEX")
+            logo_duramax = achar_logo("DURAMAX")
+            logo_neve = achar_logo("NEVE")
+
+            for cluster, group in df.groupby("CLUSTER", sort=False):
+                for subcat, grp_sub in group.groupby("CATEGORIA", sort=False):
+                    itens = grp_sub.to_dict("records")
+                    total_items = len(itens)
+                    for i in range(0, total_items, 4):
+                        chunk = itens[i:i+4]
+                        slide = prs_out.slides.add_slide(blank_layout)
+                        
+                        bg = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, 0, 0, Inches(13.333), Inches(7.5))
+                        bg.fill.solid()
+                        bg.fill.fore_color.rgb = RGBColor(242, 244, 248)
+                        bg.line.fill.background()
+                        
+                        top = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, 0, 0, Inches(13.333), Inches(0.62))
+                        top.fill.solid()
+                        top.fill.fore_color.rgb = RGBColor(0, 56, 130)
+                        top.line.fill.background()
+                        
+                        tb_cl = slide.shapes.add_textbox(Inches(0.35), Inches(0.08), Inches(4.5), Inches(0.45))
+                        tb_cl.text_frame.paragraphs[0].text = str(cluster).upper()
+                        tb_cl.text_frame.paragraphs[0].font.size = Pt(22)
+                        tb_cl.text_frame.paragraphs[0].font.bold = True
+                        tb_cl.text_frame.paragraphs[0].font.color.rgb = RGBColor(255, 255, 255)
+                        
+                        tb_sub = slide.shapes.add_textbox(Inches(4.5), Inches(0.12), Inches(4.5), Inches(0.40))
+                        tb_sub.text_frame.paragraphs[0].text = str(subcat).split(" - ")[-1].upper()
+                        tb_sub.text_frame.paragraphs[0].font.size = Pt(18)
+                        tb_sub.text_frame.paragraphs[0].font.bold = True
+                        tb_sub.text_frame.paragraphs[0].font.color.rgb = RGBColor(255, 255, 255)
+                        tb_sub.text_frame.paragraphs[0].alignment = PP_ALIGN.CENTER
+
+                        tb_it = slide.shapes.add_textbox(Inches(10.0), Inches(
