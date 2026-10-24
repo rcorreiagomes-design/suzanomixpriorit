@@ -29,15 +29,25 @@ ARQUIVO_CAPA = "Base_Capa.pptx"
 @st.cache_resource(show_spinner="Carregando catálogo visual e templates da Suzano...")
 def preparar_arquivos_nuvem():
     if not os.path.exists(PASTA_FOTOS):
-        if not os.path.exists(ARQUIVO_ZIP) and "drive.google.com" in LINK_DRIVE_ZIP:
-            gdown.download(url=LINK_DRIVE_ZIP, output=ARQUIVO_ZIP, quiet=False, fuzzy=True)
+        if not os.path.exists(ARQUIVO_ZIP):
+            try:
+                gdown.download(LINK_DRIVE_ZIP, ARQUIVO_ZIP, quiet=False, fuzzy=True)
+            except Exception:
+                file_id = "18GBHvpYRNLVLvDE8EdUz2QQXOMPpnbPd"
+                url_alt = f"https://drive.google.com/uc?id={file_id}"
+                gdown.download(url_alt, ARQUIVO_ZIP, quiet=False)
         
         if os.path.exists(ARQUIVO_ZIP):
             with zipfile.ZipFile(ARQUIVO_ZIP, 'r') as z:
                 z.extractall(PASTA_FOTOS)
                 
-    if not os.path.exists(ARQUIVO_CAPA) and "google.com" in LINK_DRIVE_CAPA:
-        gdown.download(url=LINK_DRIVE_CAPA, output=ARQUIVO_CAPA, quiet=False, fuzzy=True)
+    if not os.path.exists(ARQUIVO_CAPA):
+        try:
+            gdown.download(LINK_DRIVE_CAPA, ARQUIVO_CAPA, quiet=False, fuzzy=True)
+        except Exception:
+            file_id_capa = "1Q4DfabWYLGPORt1t-N4zF87hA9yh1m7d"
+            url_alt_capa = f"https://docs.google.com/presentation/d/{file_id_capa}/export?format=pptx"
+            gdown.download(url_alt_capa, ARQUIVO_CAPA, quiet=False)
 
 preparar_arquivos_nuvem()
 
