@@ -47,9 +47,8 @@ def achar_logo(marca):
     m = marca.upper().strip()
     if not os.path.exists(PASTA_FOTOS): return None
     
-    # Mapeamento exato para cada marca para evitar duplicados ou falhas
     termos_busca = {
-        "NEVE": ["LOGO_NEVE", "NEVE_LOGO", "MARCA_NEVE", "NEVE"],
+        "NEVE": ["NEVE", "LOGO_NEVE", "NEVE_LOGO", "MARCA_NEVE"],
         "MIMMO": ["MIMMO", "LOGO_MIMMO"],
         "SCOTT": ["SCOTT", "LOGO_SCOTT"],
         "KLEENEX": ["KLEENEX", "LOGO_KLEENEX"],
@@ -63,10 +62,14 @@ def achar_logo(marca):
             for f in files:
                 f_up = f.upper()
                 if termo in f_up:
-                    # Garantir que a Neve não puxe uma embalagem de produto por engano
                     if m == "NEVE" and any(sub in f_up for sub in ["FOLHA", "DUPLA", "TRIPLA", "WIPES", "QUADRUPLA", "ROLO", "TOQUE"]):
                         continue
                     return os.path.join(root, f)
+                    
+    for root, _, files in os.walk(PASTA_FOTOS):
+        for f in files:
+            if m in f.upper() and not any(c.isdigit() for c in f.upper()):
+                return os.path.join(root, f)
     return None
 
 def achar_imagem(mat_code):
@@ -377,4 +380,99 @@ if gerar and arquivo_up:
                         elif "Pano" in subcat and logo_duramax:
                             slide.shapes.add_picture(logo_duramax, Inches(0.35), Inches(6.85), height=Inches(0.62))
                         elif logo_neve:
-                            slide.shapes.add_picture(logo_neve, Inches(0.35), Inches(6.86), height=Inches(0.
+                            slide.shapes.add_picture(logo_neve, Inches(0.35), Inches(6.86), height=Inches(0.58))
+                        
+                        for j, item in enumerate(chunk):
+                            pos = CARDS_POS[j]
+                            cx, cy = pos["x"], pos["y"]
+                            imp_num = i + j + 1
+                            
+                            card = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, cx, cy, Inches(6.15), Inches(2.95))
+                            card.fill.solid()
+                            card.fill.fore_color.rgb = RGBColor(255, 255, 255)
+                            card.line.color.rgb = RGBColor(200, 210, 225)
+                            card.line.width = Pt(1.5)
+                            
+                            cbar = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, cx, cy, Inches(6.15), Inches(0.42))
+                            cbar.fill.solid()
+                            cbar.fill.fore_color.rgb = RGBColor(0, 75, 160)
+                            cbar.line.fill.background()
+                            
+                            badge = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, cx + Inches(0.15), cy + Inches(0.04), Inches(2.2), Inches(0.34))
+                            badge.fill.solid()
+                            badge.fill.fore_color.rgb = RGBColor(10, 100, 200)
+                            badge.line.color.rgb = RGBColor(120, 180, 255)
+                            
+                            p_b = badge.text_frame.paragraphs[0]
+                            p_b.text = str(item['CATEGORIA']).split(' - ')[0].upper()
+                            p_b.font.size = Pt(11)
+                            p_b.font.bold = True
+                            p_b.font.color.rgb = RGBColor(255, 255, 255)
+                            p_b.alignment = PP_ALIGN.CENTER
+                            
+                            mat_code = str(item['MATERIAL'])
+                            img_path = achar_imagem(mat_code)
+                            
+                            if img_path:
+                                slide.shapes.add_picture(img_path, cx + Inches(0.15), cy + Inches(0.52), width=Inches(1.85))
+                            else:
+                                ph = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, cx + Inches(0.15), cy + Inches(0.55), Inches(1.85), Inches(1.8))
+                                ph.fill.solid()
+                                ph.fill.fore_color.rgb = RGBColor(240, 240, 240)
+                                ph.line.color.rgb = RGBColor(180, 180, 180)
+                                
+                                p_ph = ph.text_frame.paragraphs[0]
+                                p_ph.text = f"Inserir Foto\n(Mat: {mat_code})"
+                                p_ph.font.size = Pt(9)
+                                p_ph.font.bold = True
+                                p_ph.font.color.rgb = RGBColor(100, 100, 100)
+                                p_ph.alignment = PP_ALIGN.CENTER
+                            
+                            tb_info = slide.shapes.add_textbox(cx + Inches(2.10), cy + Inches(0.48), Inches(3.95), Inches(1.90))
+                            tf_i = tb_info.text_frame
+                            tf_i.word_wrap = True
+                            
+                            p_n = tf_i.paragraphs[0]
+                            p_n.text = str(item['PRODUTO'])
+                            p_n.font.size = Pt(12)
+                            p_n.font.bold = True
+                            p_n.font.color.rgb = RGBColor(30, 30, 30)
+                            
+                            for lbl in [f"Categoria: {str(item['CATEGORIA']).split(' - ')[0]}", f"EAN: {item['EAN']}", f"Material: {mat_code}"]:
+                                p_sub = tf_i.add_paragraph()
+                                p_sub.text = lbl
+                                p_sub.font.size = Pt(10.5)
+                                p_sub.font.color.rgb = RGBColor(80, 80, 80)
+                            
+                            status_str = str(item['PRIORIDADE']).upper().strip()
+                            tb_prio = slide.shapes.add_textbox(cx + Inches(0.15), cy + Inches(2.48), Inches(3.8), Inches(0.38))
+                            
+                            p_p = tb_prio.text_frame.paragraphs[0]
+                            p_p.text = f"Prioridade: {status_str}"
+                            p_p.font.size = Pt(11)
+                            p_p.font.bold = True
+                            
+                            if "HERO" in status_str:
+                                p_p.font.color.rgb = RGBColor(0, 130, 60)
+                            elif "PRIORITARIO" in status_str:
+                                p_p.font.color.rgb = RGBColor(0, 90, 180)
+                            else:
+                                p_p.font.color.rgb = RGBColor(90, 90, 90)
+                            
+                            tb_imp = slide.shapes.add_textbox(cx + Inches(4.10), cy + Inches(2.48), Inches(1.90), Inches(0.38))
+                            p_imp = tb_imp.text_frame.paragraphs[0]
+                            p_imp.text = f"Importância: {imp_num}"
+                            p_imp.font.size = Pt(11)
+                            p_imp.font.bold = True
+                            p_imp.font.color.rgb = RGBColor(0, 75, 160)
+                            p_imp.alignment = PP_ALIGN.RIGHT
+
+            ppt_bytes = BytesIO()
+            prs_out.save(ppt_bytes)
+            st.success("✅ Apresentação Finalizada com Sucesso! Clique abaixo para baixar.")
+            st.download_button(
+                label="📥 Baixar Guia de Vendas (.pptx)",
+                data=ppt_bytes.getvalue(),
+                file_name=f"Guia_Mix_{titulo_regional.replace(' ', '_')}.pptx",
+                mime="application/vnd.openxmlformats-officedocument.presentationml.presentation"
+            )
