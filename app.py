@@ -29,7 +29,7 @@ def preparar_arquivos_nuvem():
             try:
                 gdown.download(LINK_DRIVE_ZIP, ARQUIVO_ZIP, quiet=False, fuzzy=True)
             except Exception:
-                gdown.download(f"https://drive.google.com/uc?id=18GBHvpYRNLVLvDE8EdUz2QQXOMPpnbPd", ARQUIVO_ZIP, quiet=False)
+                gdown.download("https://drive.google.com/uc?id=18GBHvpYRNLVLvDE8EdUz2QQXOMPpnbPd", ARQUIVO_ZIP, quiet=False)
         
         if os.path.exists(ARQUIVO_ZIP):
             with zipfile.ZipFile(ARQUIVO_ZIP, 'r') as z:
@@ -55,8 +55,7 @@ def achar_logo(marca):
                     return os.path.join(root, f)
         for root, _, files in os.walk(PASTA_FOTOS):
             for f in files:
-                f_up = f.upper()
-                if "LOGO_SUZANO" in f_up:
+                if "LOGO_SUZANO" in f.upper():
                     return os.path.join(root, f)
 
     termos_busca = {
@@ -72,6 +71,14 @@ def achar_logo(marca):
             for f in files:
                 if termo in f.upper():
                     return os.path.join(root, f)
+                    
+    # Fallback para Neve exibir a imagem correta caso o nome venha invertido no ZIP
+    if m == "NEVE":
+        for root, _, files in os.walk(PASTA_FOTOS):
+            for f in files:
+                if "NEVE" in f.upper():
+                    return os.path.join(root, f)
+                    
     return None
 
 def achar_imagem(mat_code):
@@ -197,13 +204,8 @@ def gerar_excel_template():
             else:
                 status_padrao = "COMPLEMENTAR"
             linhas.append({
-                "CLUSTER": cluster,
-                "MATERIAL": mat,
-                "EAN": ean,
-                "PRODUTO": prod,
-                "CATEGORIA": cat,
-                "MARCA": marca,
-                "PRIORIDADE": status_padrao
+                "CLUSTER": cluster, "MATERIAL": mat, "EAN": ean,
+                "PRODUTO": prod, "CATEGORIA": cat, "MARCA": marca, "PRIORIDADE": status_padrao
             })
     df_temp = pd.DataFrame(linhas)
     output = BytesIO()
@@ -215,7 +217,7 @@ col_esquerda, space, col_direita = st.columns([1.05, 0.08, 1.25])
 
 with col_esquerda:
     st.markdown("### 📥 1. Etapa de Planeamento")
-    st.write("Transfira o ficheiro Excel oficial com o portfólio completo da Suzano. Edite a coluna **PRIORIDADE** conforme a estratégia do seu cliente (`PRIORITARIO E HERO`, `PRIORITARIO`, `COMPLEMENTAR` ou `EXCLUIR`).")
+    st.write("Transfira o ficheiro Excel oficial com o portfólio completo da Suzano. Edite a coluna **PRIORIDADE** conforme a estratégia do seu cliente.")
     st.download_button(
         label="📄 Descarregar Excel Template (.xlsx)",
         data=gerar_excel_template(),
@@ -224,11 +226,10 @@ with col_esquerda:
     )
     
     st.markdown("<br>", unsafe_allow_html=True)
-    
     st.markdown("### ⚙️ 2. Gerar Manual de Execução")
     st.write("Preencha os dados da conta e faça o upload da folha de cálculo configurada.")
     
-    titulo_regional = st.text_input("📝 Nome do Distribuidor / Conta (Aparecerá na Capa):", placeholder="Ex: DESTRO - PR / SC")
+    titulo_regional = st.text_input("📝 Nome do Distribuidor / Conta:", placeholder="Ex: DESTRO - PR / SC")
     arquivo_up = st.file_uploader("📂 Suba o Excel Template preenchido (.xlsx)", type=["xlsx"])
     
     gerar = st.button("🚀 Processar e Gerar PowerPoint", type="primary", use_container_width=True)
@@ -252,8 +253,7 @@ with col_direita:
     prods_linha_1 = ["20104405", "20106704", "20081465", "90005190"]
     for i, p_mat in enumerate(prods_linha_1):
         p_path = achar_imagem(p_mat)
-        if p_path:
-            prod_cols_1[i].image(p_path, use_container_width=True)
+        if p_path: prod_cols_1[i].image(p_path, use_container_width=True)
 
     st.markdown("<div style='margin-top: 10px;'></div>", unsafe_allow_html=True)
 
@@ -261,8 +261,7 @@ with col_direita:
     prods_linha_2 = ["20104429", "20104420", "20104312", "20104424"]
     for i, p_mat in enumerate(prods_linha_2):
         p_path = achar_imagem(p_mat)
-        if p_path:
-            prod_cols_2[i].image(p_path, use_container_width=True)
+        if p_path: prod_cols_2[i].image(p_path, use_container_width=True)
 
 st.markdown(f"""
 <div style="margin-top: 50px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap;">
@@ -279,7 +278,6 @@ if gerar and arquivo_up:
             
             df = pd.read_excel(arquivo_up)
             df.columns = [str(c).strip().upper() for c in df.columns]
-            
             df = df[~df['PRIORIDADE'].astype(str).str.upper().str.contains('EXCLUIR|NAO|NÃO|FORA')]
             
             def extrair_num(txt):
@@ -361,4 +359,120 @@ if gerar and arquivo_up:
                         tb_sub.text_frame.paragraphs[0].font.color.rgb = RGBColor(255, 255, 255)
                         tb_sub.text_frame.paragraphs[0].alignment = PP_ALIGN.CENTER
 
-                        tb_it = slide.shapes.add_textbox(Inches(10.0), Inches(
+                        tb_it = slide.shapes.add_textbox(Inches(10.0), Inches(0.14), Inches(3.0), Inches(0.40))
+                        tb_it.text_frame.paragraphs[0].text = f"Itens {i+1}-{min(i+4, total_items)}"
+                        tb_it.text_frame.paragraphs[0].font.size = Pt(15)
+                        tb_it.text_frame.paragraphs[0].font.bold = True
+                        tb_it.text_frame.paragraphs[0].font.color.rgb = RGBColor(255, 255, 255)
+                        tb_it.text_frame.paragraphs[0].alignment = PP_ALIGN.RIGHT
+                        
+                        bot = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, 0, Inches(6.85), Inches(13.333), Inches(0.65))
+                        bot.fill.solid()
+                        bot.fill.fore_color.rgb = RGBColor(0, 70, 155)
+                        bot.line.fill.background()
+                        
+                        if logo_suzano: slide.shapes.add_picture(logo_suzano, Inches(11.6), Inches(6.88), height=Inches(0.58))
+                        
+                        if "Guardanapo" in subcat and logo_scott:
+                            slide.shapes.add_picture(logo_scott, Inches(0.35), Inches(6.86), height=Inches(0.60))
+                        elif "Lenços" in subcat and logo_kleenex:
+                            slide.shapes.add_picture(logo_kleenex, Inches(0.35), Inches(6.88), height=Inches(0.55))
+                        elif "Pano" in subcat and logo_duramax:
+                            slide.shapes.add_picture(logo_duramax, Inches(0.35), Inches(6.85), height=Inches(0.62))
+                        elif logo_neve:
+                            slide.shapes.add_picture(logo_neve, Inches(0.35), Inches(6.86), height=Inches(0.58))
+                        
+                        for j, item in enumerate(chunk):
+                            pos = CARDS_POS[j]
+                            cx, cy = pos["x"], pos["y"]
+                            imp_num = i + j + 1
+                            
+                            card = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, cx, cy, Inches(6.15), Inches(2.95))
+                            card.fill.solid()
+                            card.fill.fore_color.rgb = RGBColor(255, 255, 255)
+                            card.line.color.rgb = RGBColor(200, 210, 225)
+                            card.line.width = Pt(1.5)
+                            
+                            cbar = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, cx, cy, Inches(6.15), Inches(0.42))
+                            cbar.fill.solid()
+                            cbar.fill.fore_color.rgb = RGBColor(0, 75, 160)
+                            cbar.line.fill.background()
+                            
+                            badge = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, cx + Inches(0.15), cy + Inches(0.04), Inches(2.2), Inches(0.34))
+                            badge.fill.solid()
+                            badge.fill.fore_color.rgb = RGBColor(10, 100, 200)
+                            badge.line.color.rgb = RGBColor(120, 180, 255)
+                            
+                            p_b = badge.text_frame.paragraphs[0]
+                            p_b.text = str(item['CATEGORIA']).split(' - ')[0].upper()
+                            p_b.font.size = Pt(11)
+                            p_b.font.bold = True
+                            p_b.font.color.rgb = RGBColor(255, 255, 255)
+                            p_b.alignment = PP_ALIGN.CENTER
+                            
+                            mat_code = str(item['MATERIAL'])
+                            img_path = achar_imagem(mat_code)
+                            
+                            if img_path:
+                                slide.shapes.add_picture(img_path, cx + Inches(0.15), cy + Inches(0.52), width=Inches(1.85))
+                            else:
+                                ph = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, cx + Inches(0.15), cy + Inches(0.55), Inches(1.85), Inches(1.8))
+                                ph.fill.solid()
+                                ph.fill.fore_color.rgb = RGBColor(240, 240, 240)
+                                ph.line.color.rgb = RGBColor(180, 180, 180)
+                                
+                                p_ph = ph.text_frame.paragraphs[0]
+                                p_ph.text = f"Inserir Foto\n(Mat: {mat_code})"
+                                p_ph.font.size = Pt(9)
+                                p_ph.font.bold = True
+                                p_ph.font.color.rgb = RGBColor(100, 100, 100)
+                                p_ph.alignment = PP_ALIGN.CENTER
+                            
+                            tb_info = slide.shapes.add_textbox(cx + Inches(2.10), cy + Inches(0.48), Inches(3.95), Inches(1.90))
+                            tf_i = tb_info.text_frame
+                            tf_i.word_wrap = True
+                            
+                            p_n = tf_i.paragraphs[0]
+                            p_n.text = str(item['PRODUTO'])
+                            p_n.font.size = Pt(12)
+                            p_n.font.bold = True
+                            p_n.font.color.rgb = RGBColor(30, 30, 30)
+                            
+                            for lbl in [f"Categoria: {str(item['CATEGORIA']).split(' - ')[0]}", f"EAN: {item['EAN']}", f"Material: {mat_code}"]:
+                                p_sub = tf_i.add_paragraph()
+                                p_sub.text = lbl
+                                p_sub.font.size = Pt(10.5)
+                                p_sub.font.color.rgb = RGBColor(80, 80, 80)
+                            
+                            status_str = str(item['PRIORIDADE']).upper().strip()
+                            tb_prio = slide.shapes.add_textbox(cx + Inches(0.15), cy + Inches(2.48), Inches(3.8), Inches(0.38))
+                            
+                            p_p = tb_prio.text_frame.paragraphs[0]
+                            p_p.text = f"Prioridade: {status_str}"
+                            p_p.font.size = Pt(11)
+                            p_p.font.bold = True
+                            
+                            if "HERO" in status_str:
+                                p_p.font.color.rgb = RGBColor(0, 130, 60)
+                            elif "PRIORITARIO" in status_str:
+                                p_p.font.color.rgb = RGBColor(0, 90, 180)
+                            else:
+                                p_p.font.color.rgb = RGBColor(90, 90, 90)
+                            
+                            tb_imp = slide.shapes.add_textbox(cx + Inches(4.10), cy + Inches(2.48), Inches(1.90), Inches(0.38))
+                            p_imp = tb_imp.text_frame.paragraphs[0]
+                            p_imp.text = f"Importância: {imp_num}"
+                            p_imp.font.size = Pt(11)
+                            p_imp.font.bold = True
+                            p_imp.font.color.rgb = RGBColor(0, 75, 160)
+                            p_imp.alignment = PP_ALIGN.RIGHT
+
+            ppt_bytes = BytesIO()
+            prs_out.save(ppt_bytes)
+            st.success("✅ Apresentação Finalizada com Sucesso! Clique abaixo para baixar.")
+            st.download_button(
+                label="📥 Baixar Guia de Vendas (.pptx)",
+                data=ppt_bytes.getvalue(),
+                file_name=f"Guia_Mix_{titulo_regional.replace(' ', '_')}.pptx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.presentation"
+            )
