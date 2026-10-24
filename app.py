@@ -33,9 +33,7 @@ def preparar_arquivos_nuvem():
             try:
                 gdown.download(LINK_DRIVE_ZIP, ARQUIVO_ZIP, quiet=False, fuzzy=True)
             except Exception:
-                file_id = "18GBHvpYRNLVLvDE8EdUz2QQXOMPpnbPd"
-                url_alt = f"https://drive.google.com/uc?id={file_id}"
-                gdown.download(url_alt, ARQUIVO_ZIP, quiet=False)
+                gdown.download(f"https://drive.google.com/uc?id=18GBHvpYRNLVLvDE8EdUz2QQXOMPpnbPd", ARQUIVO_ZIP, quiet=False)
         
         if os.path.exists(ARQUIVO_ZIP):
             with zipfile.ZipFile(ARQUIVO_ZIP, 'r') as z:
@@ -45,9 +43,7 @@ def preparar_arquivos_nuvem():
         try:
             gdown.download(LINK_DRIVE_CAPA, ARQUIVO_CAPA, quiet=False, fuzzy=True)
         except Exception:
-            file_id_capa = "1Q4DfabWYLGPORt1t-N4zF87hA9yh1m7d"
-            url_alt_capa = f"https://docs.google.com/presentation/d/{file_id_capa}/export?format=pptx"
-            gdown.download(url_alt_capa, ARQUIVO_CAPA, quiet=False)
+            gdown.download("https://docs.google.com/presentation/d/1Q4DfabWYLGPORt1t-N4zF87hA9yh1m7d/export?format=pptx", ARQUIVO_CAPA, quiet=False)
 
 preparar_arquivos_nuvem()
 
@@ -55,24 +51,25 @@ def achar_logo(marca):
     m = marca.upper().strip()
     if not os.path.exists(PASTA_FOTOS): return None
     
+    # Varredura inteligente exata para encontrar a logo da Neve no ZIP
     if m == "NEVE":
         for root, _, files in os.walk(PASTA_FOTOS):
             for f in files:
-                if "LOGO_NEVE" in f.upper():
-                    return os.path.join(root, f)
-        for root, _, files in os.walk(PASTA_FOTOS):
-            for f in files:
-                if "LOGO_SUZANO" in f.upper():
-                    return os.path.join(root, f)
+                f_up = f.upper()
+                if "NEVE" in f_up and ("LOGO" in f_up or "MARCA" in f_up or "PNG" in f_up or "JPG" in f_up):
+                    if not any(sub in f_up for sub in ["FOLHA", "DUPLA", "TRIPLA", "WIPES", "QUADRUPLA", "ROLO"]):
+                        return os.path.join(root, f)
 
     termo = f"LOGO_{m}"
     for root, _, files in os.walk(PASTA_FOTOS):
         for f in files:
             if termo in f.upper():
                 return os.path.join(root, f)
+                
     for root, _, files in os.walk(PASTA_FOTOS):
         for f in files:
-            if m in f.upper() and not any(c.isdigit() for c in f):
+            f_up = f.upper()
+            if m in f_up and not any(c.isdigit() for c in f_up):
                 return os.path.join(root, f)
     return None
 
