@@ -1,0 +1,258 @@
+import streamlit as st
+import pandas as pd
+import os
+import zipfile
+import re
+import base64
+import gdown
+from io import BytesIO
+from pptx import Presentation
+from pptx.util import Inches, Pt
+from pptx.dml.color import RGBColor
+from pptx.enum.text import PP_ALIGN
+from pptx.enum.shapes import MSO_SHAPE
+
+# 1. CONFIGURAÇÃO DA PÁGINA COM O FAVICON OFICIAL DA SUZANO
+FAVICON_OFICIAL = "https://cdn.prod.website-files.com/69cb021343dbf125cabfa994/69cb021343dbf125cabfaa24_favicon-suzano.png"
+st.set_page_config(page_title="Suzano | Trade Marketing", page_icon=FAVICON_OFICIAL, layout="wide")
+
+# =========================================================
+# CONEXÃO COM GOOGLE DRIVE PARA ARQUIVOS PESADOS (> 25MB)
+# =========================================================
+LINK_DRIVE_ZIP = "https://drive.google.com/file/d/18GBHvpYRNLVLvDE8EdUz2QQXOMPpnbPd/view?usp=sharing"
+LINK_DRIVE_CAPA = "https://docs.google.com/presentation/d/1Q4DfabWYLGPORt1t-N4zF87hA9yh1m7d/export?format=pptx"
+
+PASTA_FOTOS = "fotos_temp"
+ARQUIVO_ZIP = "Banco_de_Fotos_Suzano.zip"
+ARQUIVO_CAPA = "Base_Capa.pptx"
+
+@st.cache_resource(show_spinner="Carregando catálogo visual e templates da Suzano...")
+def preparar_arquivos_nuvem():
+    if not os.path.exists(PASTA_FOTOS):
+        if not os.path.exists(ARQUIVO_ZIP) and "drive.google.com" in LINK_DRIVE_ZIP:
+            gdown.download(url=LINK_DRIVE_ZIP, output=ARQUIVO_ZIP, quiet=False, fuzzy=True)
+        
+        if os.path.exists(ARQUIVO_ZIP):
+            with zipfile.ZipFile(ARQUIVO_ZIP, 'r') as z:
+                z.extractall(PASTA_FOTOS)
+                
+    if not os.path.exists(ARQUIVO_CAPA) and "google.com" in LINK_DRIVE_CAPA:
+        gdown.download(url=LINK_DRIVE_CAPA, output=ARQUIVO_CAPA, quiet=False, fuzzy=True)
+
+preparar_arquivos_nuvem()
+
+def achar_logo(marca):
+    m = marca.upper().strip()
+    if not os.path.exists(PASTA_FOTOS): return None
+    
+    if m == "NEVE":
+        for root, _, files in os.walk(PASTA_FOTOS):
+            for f in files:
+                if "LOGO_NEVE" in f.upper():
+                    return os.path.join(root, f)
+        for root, _, files in os.walk(PASTA_FOTOS):
+            for f in files:
+                if "LOGO_SUZANO" in f.upper():
+                    return os.path.join(root, f)
+
+    termo = f"LOGO_{m}"
+    for root, _, files in os.walk(PASTA_FOTOS):
+        for f in files:
+            if termo in f.upper():
+                return os.path.join(root, f)
+    for root, _, files in os.walk(PASTA_FOTOS):
+        for f in files:
+            if m in f.upper() and not any(c.isdigit() for c in f):
+                return os.path.join(root, f)
+    return None
+
+def achar_imagem(mat_code):
+    codigo_busca = str(mat_code).split("/")[0].strip().upper()
+    if not os.path.exists(PASTA_FOTOS): return None
+    for root, _, files in os.walk(PASTA_FOTOS):
+        for f in files:
+            if codigo_busca in f.upper():
+                return os.path.join(root, f)
+    return None
+
+# 2. SVG OFICIAL EXTRAÍDO DO CÓDIGO-FONTE DA SUZANO
+SVG_SUZANO_OFICIAL = """<svg xmlns="http://www.w3.org/2000/svg" width="220" height="52" viewBox="0 0 120 28" fill="none">
+<path d="M17.1158 9.99659C17.6873 7.6407 17.9414 5.28482 17.8778 2.86526V2.80159C22.0057 2.35588 26.6417 1.8465 29.3089 0C29.69 2.35588 30.071 6.23991 25.4351 12.7982C20.6721 19.4201 13.3054 23.0495 7.20884 24.9596C8.66948 23.8135 10.0031 22.4764 11.2732 21.0756C14.1945 17.7646 16.0997 14.008 17.1158 9.99659ZM15.4646 3.11995C9.74908 3.69301 5.7482 5.53951 3.20796 8.72314C0.4137 12.1615 -0.538889 17.4463 0.286688 24.6413C0.350194 25.3417 0.4137 25.851 0.477206 26.2331H0.540712C3.589 24.7686 15.5281 17.9557 15.4646 3.11995ZM31.0871 7.44969C30.198 9.86924 28.9914 12.1615 27.4672 14.2626C22.6408 20.9483 15.5281 24.5776 10.3206 26.4878C8.66948 27.1245 7.08183 7.5702 5.7482 27.9522C9.81259 28.1433 13.5594 27.7612 16.8617 26.8061C20.6086 25.7237 23.6569 23.8772 26.0701 21.394C29.5629 17.7646 31.3411 12.8619 31.0871 7.44969Z" fill="url(#paint0_radial_suzano)"/>
+<path d="M47.2194 13.1188C46.3939 12.5457 44.7427 11.909 43.028 11.909C41.3134 11.909 40.1068 12.6731 40.1068 13.8192C40.1068 14.8379 41.0594 15.3473 42.5835 15.5383L44.1076 15.7294C46.8384 16.1114 48.4896 17.2575 48.4896 19.4224C48.4896 21.9056 46.2668 23.4974 42.774 23.4974C41.1864 23.4974 39.0272 23.1154 37.3125 21.8419L38.3286 20.1864C39.2812 20.9505 40.5513 21.5872 42.7105 21.5872C44.8697 21.5872 46.1398 20.8868 46.1398 19.6134C46.1398 18.6583 45.3143 18.0852 43.5361 17.8306L42.0119 17.6395C39.1542 17.2575 37.757 15.984 37.757 14.0102C37.757 11.527 39.7892 10.0625 42.9645 10.0625C44.9967 10.0625 46.8384 10.5719 48.1085 11.4633L47.2194 13.1188Z" fill="#FFFFFF"/>
+<path d="M62.0152 17.7634C62.0152 21.6474 59.221 23.4302 56.1092 23.4302C52.9974 23.4302 50.2031 21.6474 50.2031 17.7634V10.25H52.4258V17.5723C52.4258 20.1829 54.0135 21.3927 56.1092 21.3927C58.2049 21.3927 59.7925 20.2466 59.7925 17.5723V10.25H62.0152V17.7634Z" fill="#FFFFFF"/>
+<path d="M75.1564 11.8418L67.2181 21.138H75.2834V23.1755H64.2969V21.5837L72.3621 12.2875H64.5509V10.25H75.2199V11.8418H75.1564Z" fill="#FFFFFF"/>
+<path d="M89.5071 23.1814H87.2844V21.4622C86.2683 22.672 84.7442 23.4361 82.712 23.4361C79.0921 23.4361 76.2344 20.6345 76.2344 16.6868C76.2344 12.7391 79.0286 9.9375 82.712 9.9375C84.7442 9.9375 86.2683 10.7016 87.2844 11.975V10.1922H89.5071V23.1814ZM78.5841 16.6868C78.5841 19.2337 80.3623 21.3349 83.0295 21.3349C85.6968 21.3349 87.4749 19.361 87.4749 16.6868C87.4749 14.0125 85.6333 12.0387 83.0295 12.0387C80.4258 12.0387 78.5841 14.1399 78.5841 16.6868Z" fill="#FFFFFF"/>
+<path d="M104.375 15.1586V23.1814H102.152V15.859C102.152 13.5032 100.818 12.1024 98.5956 12.1024C96.4999 12.1024 94.7852 13.5032 94.7852 15.9227V23.1814H92.5625V10.2559H94.7852V11.9113C95.8648 10.4469 97.516 9.9375 98.9766 9.9375C102.215 9.9375 104.375 12.0387 104.375 15.1586Z" fill="#FFFFFF"/>
+<path d="M119.998 16.6868C119.998 20.5071 117.076 23.4361 113.139 23.4361C109.202 23.4361 106.344 20.5071 106.344 16.6868C106.344 12.8664 109.265 9.9375 113.139 9.9375C117.013 9.9375 119.998 12.8664 119.998 16.6868ZM108.63 16.6868C108.63 19.4247 110.599 21.3349 113.202 21.3349C115.806 21.3349 117.775 19.361 117.775 16.6868C117.775 14.0125 115.806 12.0387 113.202 12.0387C110.599 12.0387 108.63 14.0125 108.63 16.6868Z" fill="#FFFFFF"/>
+<defs>
+<radialGradient id="paint0_radial_suzano" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(-8.33107 14.1226) scale(45.6291 45.7487)">
+<stop stop-color="#A4E03D"/>
+<stop offset="0.5" stop-color="#00CC66"/>
+<stop offset="1" stop-color="#008461"/>
+</radialGradient>
+</defs>
+</svg>"""
+
+b64_suzano_logo = base64.b64encode(SVG_SUZANO_OFICIAL.encode('utf-8')).decode('utf-8')
+URL_LOGO_TAGLINE_RODAPE = "https://cdn.prod.website-files.com/69cb021343dbf125cabfa994/69cb021343dbf125cabfa9df_logo-tagline.svg"
+
+# 3. ESTILOS CSS OFICIAIS
+st.markdown("""
+<style>
+    div.stButton > button:first-child, div.stDownloadButton > button:first-child {
+        background-color: #03267F !important;
+        color: #FFFFFF !important;
+        border-radius: 8px;
+        border: 1px solid rgba(255,255,255,0.1);
+        padding: 0.6rem 1.2rem;
+        font-weight: 700;
+        transition: all 0.3s ease;
+    }
+    div.stButton > button:first-child:hover, div.stDownloadButton > button:first-child:hover {
+        background-color: #00C85A !important;
+        color: #FFFFFF !important;
+        border-color: #00C85A !important;
+        transform: translateY(-1px);
+    }
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    header {visibility: hidden;}
+</style>
+""", unsafe_allow_html=True)
+
+# 4. BANNER CORPORATIVO
+st.markdown(f"""
+<div style="background: linear-gradient(95deg, #03267F 0%, #003882 60%, #004B9B 100%); padding: 26px 35px; border-radius: 12px 12px 0px 0px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 20px; box-shadow: 0 6px 16px rgba(0,0,0,0.35);">
+    <div style="display: flex; align-items: center; gap: 24px;">
+        <img src="data:image/svg+xml;base64,{b64_suzano_logo}" style="height: 48px; display: block;" alt="Logo Suzano Oficial">
+        <div style="height: 38px; width: 2px; background-color: rgba(255,255,255,0.2);"></div>
+        <div>
+            <div style="color: #A4E03D; font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: 2px;">Trade Marketing • Bens de Consumo</div>
+            <div style="color: #FFFFFF; font-size: 20px; font-weight: 600; margin-top: 2px;">Gerador Oficial de Guias de Execução Checkout</div>
+        </div>
+    </div>
+    <div style="text-align: right;">
+        <span style="background-color: rgba(0, 200, 90, 0.2); border: 1px solid #00C85A; color: #A4E03D; padding: 6px 14px; border-radius: 20px; font-size: 12px; font-weight: 600;">Portfólio Higiene 2026</span>
+    </div>
+</div>
+<div style="display: flex; height: 7px; border-radius: 0px 0px 12px 12px; margin-bottom: 30px; overflow: hidden;">
+    <div style="flex: 1; background-color: #00C85A;" title="Suzano"></div>
+    <div style="flex: 1; background-color: #D4AF37;" title="Neve"></div>
+    <div style="flex: 1; background-color: #662D91;" title="Mimmo"></div>
+    <div style="flex: 1; background-color: #009CDE;" title="Scott / Duramax"></div>
+    <div style="flex: 1; background-color: #0055A4;" title="Kleenex"></div>
+</div>
+""", unsafe_allow_html=True)
+
+CATALOGO_PADRAO = [
+    ("20104429", "7891172151125", "GUARDANAPO SCOTT GRAND HOTEL FD 9X9X50P", "Guardanapo", "Scott"),
+    ("20104430", "7891172151323", "GUARDANAPO SCOTT GRAND HOTEL FD 8X9X50G", "Guardanapo", "Scott"),
+    ("20104426", "7891172145124", "GUARD. SCOTT DIA A DIA FS 6X12X50 P", "Guardanapo", "Scott"),
+    ("20104427", "7891172145322", "GUARD. SCOTT DIA A DIA FS 6X12X50 G", "Guardanapo", "Scott"),
+    ("20104420/20104421", "7891172161162 / 7891172172106", "LENÇO DE PAPEL KLEENEX 50 ou 50/60 LENÇOS", "Lenços Secos", "Kleenex"),
+    ("20104309", "7891172523380", "LENÇO DE PAPEL KLEENEX L4P3", "Lenços Secos", "Kleenex"),
+    ("20104422", "7891172523366", "LENÇO DE PAPEL KLEENEX 100/80 LENÇOS", "Lenços Secos", "Kleenex"),
+    ("20104423", "7891172523373", "LENÇO DE PAPEL KLEENEX 150 LENÇOS", "Lenços Secos", "Kleenex"),
+    ("20104310", "7891172171666", "LENÇO DE PAPEL KLEENEX 12 PACOTES (BOLSO)", "Lenços Secos", "Kleenex"),
+    ("90005190", "7891172523908", "NEVE WIPES CARE 48 LENÇOS", "Wipes", "Neve"),
+    ("90005191", "7891172523915", "NEVE WIPES CARE LEVE 4 PAGUE 3", "Wipes", "Neve"),
+    ("90004710", "7898962794241", "LENÇO UMEDECIDO MIMMO 40 LENÇOS", "Wipes", "Mimmo"),
+    ("90005082", "7891172523816", "NEVE WIPES ON THE GO", "Wipes", "Neve"),
+    ("20104313", "7891172523328", "TC SCOTT DURAMAX 1R BRANCO", "Pano Reutilizável", "Scott"),
+    ("20104312", "7891172523311", "TC SCOTT DURAMAX 1R AZUL", "Pano Reutilizável", "Scott"),
+    ("20104311", "7891172523359", "PANO SCOTT DURAMAX 48X01X12 ANTIBAC", "Pano Reutilizável", "Scott"),
+    ("20104424", "7891172523335", "PANO SCOTT DURAMAX 58X02X12 BRANCO (2R)", "Pano Reutilizável", "Scott"),
+    ("20081465", "7898962794166", "MIMMO FOLHA DUPLA 12 ROLOS 30M", "Papel Higiênico - Folha Dupla", "Mimmo"),
+    ("20104405", "7891172523434", "NEVE FOLHA DUPLA 12 ROLOS 20M", "Papel Higiênico - Folha Dupla", "Neve"),
+    ("20104408", "7891172421174", "NEVE FOLHA DUPLA 4 ROLOS 30M", "Papel Higiênico - Folha Dupla", "Neve"),
+    ("20104409", "7891172523410", "NEVE FOLHA DUPLA 12 ROLOS 30M", "Papel Higiênico - Folha Dupla", "Neve"),
+    ("20081467", "7898962794173", "MIMMO FOLHA DUPLA 16 ROLOS 30M", "Papel Higiênico - Folha Dupla", "Mimmo"),
+    ("20104410", "7891172432026", "NEVE FOLHA DUPLA 16 ROLOS 30M", "Papel Higiênico - Folha Dupla", "Neve"),
+    ("20081471", "7898962794142", "MIMMO FOLHA DUPLA 4 ROLOS 30M", "Papel Higiênico - Folha Dupla", "Mimmo"),
+    ("20104411", "7891172523403", "NEVE FD L18P16 30M", "Papel Higiênico - Folha Dupla", "Neve"),
+    ("20104412", "7891172433078", "NEVE FOLHA DUPLA 24 ROLOS 30M", "Papel Higiênico - Folha Dupla", "Neve"),
+    ("20104415", "7891172523472", "NEVE FOLHA TRIPLA 12 ROLOS 20M", "Papel Higiênico - Folha Tripla", "Neve"),
+    ("20097397", "7898962794265", "MIMMO FOLHA TRIPLA 12 ROLOS 20M", "Papel Higiênico - Folha Tripla", "Mimmo"),
+    ("20104414", "7891172422607", "NEVE FOLHA TRIPLA 4 ROLOS 20M", "Papel Higiênico - Folha Tripla", "Neve"),
+    ("20104416", "7891172432804", "NEVE FOLHA TRIPLA 16 ROLOS 20M", "Papel Higiênico - Folha Tripla", "Neve"),
+    ("20104417", "7891172523465", "NEVE FT L18P16 20M", "Papel Higiênico - Folha Tripla", "Neve"),
+    ("20104418", "7891172433085", "NEVE FOLHA TRIPLA 24 ROLOS 20M", "Papel Higiênico - Folha Tripla", "Neve"),
+    ("20109736", "7891172523847", "NEVE FOLHA TRIPLA TOQUE DE ONDAS 6R 20M", "Papel Higiênico - Folha Tripla", "Neve"),
+    ("20109735", "7891172523861", "NEVE FOLHA TRIPLA TOQUE DE ONDAS 12R 20M", "Papel Higiênico - Folha Tripla", "Neve"),
+    ("20106705", "7891172523717", "NEVE FOLHA QUADRUPLA 4R 20M", "Papel Higiênico - Folha Quádrupla", "Neve"),
+    ("20106704", "7891172523724", "NEVE FOLHA QUADRUPLA 12R 20M", "Papel Higiênico - Folha Quádrupla", "Neve"),
+]
+
+def gerar_excel_template():
+    linhas = []
+    for cluster in ["CK 1 A 4 CK", "CK 05 A 09 CK", "CK 10 A 19 CK"]:
+        for mat, ean, prod, cat, marca in CATALOGO_PADRAO:
+            if cluster in ["CK 1 A 4 CK", "CK 05 A 09 CK"] and mat in ["20104411", "20104412", "20104417", "20104418"]:
+                status_padrao = "EXCLUIR"
+            else:
+                status_padrao = "COMPLEMENTAR"
+            linhas.append({
+                "CLUSTER": cluster,
+                "MATERIAL": mat,
+                "EAN": ean,
+                "PRODUTO": prod,
+                "CATEGORIA": cat,
+                "MARCA": marca,
+                "PRIORIDADE": status_padrao
+            })
+    df_temp = pd.DataFrame(linhas)
+    output = BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        df_temp.to_excel(writer, index=False, sheet_name="Mix_Regional")
+    return output.getvalue()
+
+col_esquerda, space, col_direita = st.columns([1.05, 0.08, 1.25])
+
+with col_esquerda:
+    st.markdown("### 📥 1. Etapa de Planejamento")
+    st.write("Baixe a planilha oficial com o portfólio completo da Suzano. Edite a coluna **PRIORIDADE** conforme a estratégia do seu cliente (`PRIORITARIO E HERO`, `PRIORITARIO`, `COMPLEMENTAR` ou `EXCLUIR`).")
+    st.download_button(
+        label="📄 Baixar Planilha Template (.xlsx)",
+        data=gerar_excel_template(),
+        file_name="Template_Mix_Suzano_2026.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
+    
+    st.markdown("<br>", unsafe_allow_html=True)
+    
+    st.markdown("### ⚙️ 2. Gerar Manual de Execução")
+    st.write("Preencha os dados da conta e faça o upload da planilha configurada.")
+    
+    titulo_regional = st.text_input("📝 Nome do Distribuidor / Conta (Aparecerá na Capa):", placeholder="Ex: DESTRO - PR / SC")
+    arquivo_up = st.file_uploader("📂 Suba a Planilha Template preenchida (.xlsx)", type=["xlsx"])
+    
+    gerar = st.button("🚀 Processar e Gerar PowerPoint", type="primary", use_container_width=True)
+
+with col_direita:
+    st.markdown("### 🏢 Nossas Marcas & Destaques")
+    st.write("Catálogo Oficial - Segmento de Higiene e Cuidados Pessoais")
+    
+    logo_cols = st.columns(5)
+    marcas_vitrine = ["NEVE", "MIMMO", "SCOTT", "KLEENEX", "DURAMAX"]
+    for i, m_nome in enumerate(marcas_vitrine):
+        l_path = achar_logo(m_nome)
+        if l_path:
+            logo_cols[i].image(l_path, use_container_width=True)
+            
+    st.markdown("<hr style='margin: 15px 0px; border-color: #444444;'>", unsafe_allow_html=True)
+    
+    prod_cols_1 = st.columns(4)
+    prods_linha_1 = ["20104405", "20106704", "20081465", "90005190"]
+    for i, p_mat in enumerate(prods_linha_1):
+        p_path = achar_imagem(p_mat)
+        if p_path:
+            prod_cols_1[i].image(p_path, use_container_width=True)
+
+    st.markdown("<div style='margin-top: 10px;'></div>", unsafe_allow_html=True)
+
+    prod_cols_2 = st.columns(4)
+    prods_linha_2 = ["20104429", "20104420", "20104312", "20104424"]
+    for i, p_mat in enumerate(prods_linha_2):
+        p_path = achar_imagem(p_mat)
+        if p_path:
+            prod_cols_2[i].image(p_path
