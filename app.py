@@ -255,4 +255,219 @@ with col_direita:
     for i, p_mat in enumerate(prods_linha_2):
         p_path = achar_imagem(p_mat)
         if p_path:
-            prod_cols_2[i].image(p_path
+            prod_cols_2[i].image(p_path, use_container_width=True)
+
+st.markdown(f"""
+<div style="margin-top: 50px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap;">
+    <img src="{URL_LOGO_TAGLINE_RODAPE}" style="height: 32px; opacity: 0.9;" alt="Suzano - Nós plantamos o futuro">
+    <span style="color: #888888; font-size: 12px;">® Suzano S/A - Todos os direitos reservados • Ferramenta Interna de Trade Marketing</span>
+</div>
+""", unsafe_allow_html=True)
+
+if gerar and arquivo_up:
+    if not titulo_regional:
+        st.warning("Por favor, preencha o nome do Distribuidor/Conta antes de gerar o manual.")
+    else:
+        with st.spinner("Conectando ao banco de imagens Suzano e renderizando os slides..."):
+            
+            df = pd.read_excel(arquivo_up)
+            df.columns = [str(c).strip().upper() for c in df.columns]
+            
+            df = df[~df['PRIORIDADE'].astype(str).str.upper().str.contains('EXCLUIR|NAO|NÃO|FORA')]
+            
+            def extrair_num(txt):
+                nums = re.findall(r'\d+', str(txt))
+                return int(nums[0]) if nums else 99
+
+            df['Cluster_Num'] = df['CLUSTER'].apply(extrair_num)
+            ordem_cat = {
+                'Guardanapo': 1, 'Lenços Secos': 2, 'Wipes': 3, 'Pano Reutilizável': 4,
+                'Papel Higiênico - Folha Dupla': 5, 'Papel Higiênico - Folha Tripla': 6, 'Papel Higiênico - Folha Quádrupla': 7
+            }
+            ordem_prio = {'PRIORITARIO E HERO': 1, 'PRIORITARIO': 2, 'COMPLEMENTAR': 3}
+            
+            df['cat_ord'] = df['CATEGORIA'].map(ordem_cat).fillna(99)
+            df['prio_ord'] = df['PRIORIDADE'].astype(str).str.upper().str.strip().map(ordem_prio).fillna(99)
+            df = df.sort_values(by=['Cluster_Num', 'cat_ord', 'prio_ord']).reset_index(drop=True)
+
+            prs_out = Presentation()
+            prs_out.slide_width, prs_out.slide_height = Inches(13.333), Inches(7.5)
+            blank_layout = prs_out.slide_layouts[6]
+
+            slide_capa = prs_out.slides.add_slide(blank_layout)
+            if os.path.exists(ARQUIVO_CAPA):
+                prs_base = Presentation(ARQUIVO_CAPA)
+                for sh in prs_base.slides[0].shapes:
+                    if sh.shape_type == 13:
+                        slide_capa.shapes.add_picture(BytesIO(sh.image.blob), sh.left, sh.top, sh.width, sh.height)
+            else:
+                bg_c = slide_capa.shapes.add_shape(MSO_SHAPE.RECTANGLE, 0, 0, Inches(13.333), Inches(7.5))
+                bg_c.fill.solid()
+                bg_c.fill.fore_color.rgb = RGBColor(0, 56, 130)
+
+            tb_capa = slide_capa.shapes.add_textbox(Inches(2.5), Inches(2.8), Inches(8.5), Inches(2.0))
+            tb_capa.text_frame.paragraphs[0].text = f"GUIA DE VENDAS CHECKOUT\n{titulo_regional.upper()}"
+            tb_capa.text_frame.paragraphs[0].font.size = Pt(36)
+            tb_capa.text_frame.paragraphs[0].font.bold = True
+            tb_capa.text_frame.paragraphs[0].font.color.rgb = RGBColor(255, 255, 255)
+            tb_capa.text_frame.paragraphs[0].alignment = PP_ALIGN.CENTER
+
+            CARDS_POS = [
+                {"x": Inches(0.35), "y": Inches(0.80)}, {"x": Inches(6.80), "y": Inches(0.80)},
+                {"x": Inches(0.35), "y": Inches(3.95)}, {"x": Inches(6.80), "y": Inches(3.95)}
+            ]
+
+            logo_suzano = achar_logo("SUZANO")
+            logo_scott = achar_logo("SCOTT")
+            logo_kleenex = achar_logo("KLEENEX")
+            logo_duramax = achar_logo("DURAMAX")
+            logo_neve = achar_logo("NEVE")
+
+            for cluster, group in df.groupby("CLUSTER", sort=False):
+                for subcat, grp_sub in group.groupby("CATEGORIA", sort=False):
+                    itens = grp_sub.to_dict("records")
+                    total_items = len(itens)
+                    for i in range(0, total_items, 4):
+                        chunk = itens[i:i+4]
+                        slide = prs_out.slides.add_slide(blank_layout)
+                        
+                        bg = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, 0, 0, Inches(13.333), Inches(7.5))
+                        bg.fill.solid()
+                        bg.fill.fore_color.rgb = RGBColor(242, 244, 248)
+                        bg.line.fill.background()
+                        
+                        top = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, 0, 0, Inches(13.333), Inches(0.62))
+                        top.fill.solid()
+                        top.fill.fore_color.rgb = RGBColor(0, 56, 130)
+                        top.line.fill.background()
+                        
+                        tb_cl = slide.shapes.add_textbox(Inches(0.35), Inches(0.08), Inches(4.5), Inches(0.45))
+                        tb_cl.text_frame.paragraphs[0].text = str(cluster).upper()
+                        tb_cl.text_frame.paragraphs[0].font.size = Pt(22)
+                        tb_cl.text_frame.paragraphs[0].font.bold = True
+                        tb_cl.text_frame.paragraphs[0].font.color.rgb = RGBColor(255, 255, 255)
+                        
+                        tb_sub = slide.shapes.add_textbox(Inches(4.5), Inches(0.12), Inches(4.5), Inches(0.40))
+                        tb_sub.text_frame.paragraphs[0].text = str(subcat).split(" - ")[-1].upper()
+                        tb_sub.text_frame.paragraphs[0].font.size = Pt(18)
+                        tb_sub.text_frame.paragraphs[0].font.bold = True
+                        tb_sub.text_frame.paragraphs[0].font.color.rgb = RGBColor(255, 255, 255)
+                        tb_sub.text_frame.paragraphs[0].alignment = PP_ALIGN.CENTER
+
+                        tb_it = slide.shapes.add_textbox(Inches(10.0), Inches(0.14), Inches(3.0), Inches(0.40))
+                        tb_it.text_frame.paragraphs[0].text = f"Itens {i+1}-{min(i+4, total_items)}"
+                        tb_it.text_frame.paragraphs[0].font.size = Pt(15)
+                        tb_it.text_frame.paragraphs[0].font.bold = True
+                        tb_it.text_frame.paragraphs[0].font.color.rgb = RGBColor(255, 255, 255)
+                        tb_it.text_frame.paragraphs[0].alignment = PP_ALIGN.RIGHT
+                        
+                        bot = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, 0, Inches(6.85), Inches(13.333), Inches(0.65))
+                        bot.fill.solid()
+                        bot.fill.fore_color.rgb = RGBColor(0, 70, 155)
+                        bot.line.fill.background()
+                        
+                        if logo_suzano: slide.shapes.add_picture(logo_suzano, Inches(11.6), Inches(6.88), height=Inches(0.58))
+                        
+                        if "Guardanapo" in subcat and logo_scott:
+                            slide.shapes.add_picture(logo_scott, Inches(0.35), Inches(6.86), height=Inches(0.60))
+                        elif "Lenços" in subcat and logo_kleenex:
+                            slide.shapes.add_picture(logo_kleenex, Inches(0.35), Inches(6.88), height=Inches(0.55))
+                        elif "Pano" in subcat and logo_duramax:
+                            slide.shapes.add_picture(logo_duramax, Inches(0.35), Inches(6.85), height=Inches(0.62))
+                        elif logo_neve:
+                            slide.shapes.add_picture(logo_neve, Inches(0.35), Inches(6.86), height=Inches(0.58))
+                        
+                        for j, item in enumerate(chunk):
+                            pos = CARDS_POS[j]
+                            cx, cy = pos["x"], pos["y"]
+                            imp_num = i + j + 1
+                            
+                            card = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, cx, cy, Inches(6.15), Inches(2.95))
+                            card.fill.solid()
+                            card.fill.fore_color.rgb = RGBColor(255, 255, 255)
+                            card.line.color.rgb = RGBColor(200, 210, 225)
+                            card.line.width = Pt(1.5)
+                            
+                            cbar = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, cx, cy, Inches(6.15), Inches(0.42))
+                            cbar.fill.solid()
+                            cbar.fill.fore_color.rgb = RGBColor(0, 75, 160)
+                            cbar.line.fill.background()
+                            
+                            badge = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, cx + Inches(0.15), cy + Inches(0.04), Inches(2.2), Inches(0.34))
+                            badge.fill.solid()
+                            badge.fill.fore_color.rgb = RGBColor(10, 100, 200)
+                            badge.line.color.rgb = RGBColor(120, 180, 255)
+                            
+                            p_b = badge.text_frame.paragraphs[0]
+                            p_b.text = str(item['CATEGORIA']).split(' - ')[0].upper()
+                            p_b.font.size = Pt(11)
+                            p_b.font.bold = True
+                            p_b.font.color.rgb = RGBColor(255, 255, 255)
+                            p_b.alignment = PP_ALIGN.CENTER
+                            
+                            mat_code = str(item['MATERIAL'])
+                            img_path = achar_imagem(mat_code)
+                            
+                            if img_path:
+                                slide.shapes.add_picture(img_path, cx + Inches(0.15), cy + Inches(0.52), width=Inches(1.85))
+                            else:
+                                ph = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, cx + Inches(0.15), cy + Inches(0.55), Inches(1.85), Inches(1.8))
+                                ph.fill.solid()
+                                ph.fill.fore_color.rgb = RGBColor(240, 240, 240)
+                                ph.line.color.rgb = RGBColor(180, 180, 180)
+                                
+                                p_ph = ph.text_frame.paragraphs[0]
+                                p_ph.text = f"Inserir Foto\n(Mat: {mat_code})"
+                                p_ph.font.size = Pt(9)
+                                p_ph.font.bold = True
+                                p_ph.font.color.rgb = RGBColor(100, 100, 100)
+                                p_ph.alignment = PP_ALIGN.CENTER
+                            
+                            tb_info = slide.shapes.add_textbox(cx + Inches(2.10), cy + Inches(0.48), Inches(3.95), Inches(1.90))
+                            tf_i = tb_info.text_frame
+                            tf_i.word_wrap = True
+                            
+                            p_n = tf_i.paragraphs[0]
+                            p_n.text = str(item['PRODUTO'])
+                            p_n.font.size = Pt(12)
+                            p_n.font.bold = True
+                            p_n.font.color.rgb = RGBColor(30, 30, 30)
+                            
+                            for lbl in [f"Categoria: {str(item['CATEGORIA']).split(' - ')[0]}", f"EAN: {item['EAN']}", f"Material: {mat_code}"]:
+                                p_sub = tf_i.add_paragraph()
+                                p_sub.text = lbl
+                                p_sub.font.size = Pt(10.5)
+                                p_sub.font.color.rgb = RGBColor(80, 80, 80)
+                            
+                            status_str = str(item['PRIORIDADE']).upper().strip()
+                            tb_prio = slide.shapes.add_textbox(cx + Inches(0.15), cy + Inches(2.48), Inches(3.8), Inches(0.38))
+                            
+                            p_p = tb_prio.text_frame.paragraphs[0]
+                            p_p.text = f"Prioridade: {status_str}"
+                            p_p.font.size = Pt(11)
+                            p_p.font.bold = True
+                            
+                            if "HERO" in status_str:
+                                p_p.font.color.rgb = RGBColor(0, 130, 60)
+                            elif "PRIORITARIO" in status_str:
+                                p_p.font.color.rgb = RGBColor(0, 90, 180)
+                            else:
+                                p_p.font.color.rgb = RGBColor(90, 90, 90)
+                            
+                            tb_imp = slide.shapes.add_textbox(cx + Inches(4.10), cy + Inches(2.48), Inches(1.90), Inches(0.38))
+                            p_imp = tb_imp.text_frame.paragraphs[0]
+                            p_imp.text = f"Importância: {imp_num}"
+                            p_imp.font.size = Pt(11)
+                            p_imp.font.bold = True
+                            p_imp.font.color.rgb = RGBColor(0, 75, 160)
+                            p_imp.alignment = PP_ALIGN.RIGHT
+
+            ppt_bytes = BytesIO()
+            prs_out.save(ppt_bytes)
+            st.success("✅ Apresentação Finalizada com Sucesso! Clique abaixo para baixar.")
+            st.download_button(
+                label="📥 Baixar Guia de Vendas (.pptx)",
+                data=ppt_bytes.getvalue(),
+                file_name=f"Guia_Mix_{titulo_regional.replace(' ', '_')}.pptx",
+                mime="application/vnd.openxmlformats-officedocument.presentationml.presentation"
+            )
